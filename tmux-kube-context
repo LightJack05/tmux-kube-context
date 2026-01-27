@@ -57,7 +57,7 @@ generate_session_name() {
     # Replace dots with underscores, then replace any non-alphanumeric chars (except dash and underscore)
     local sanitized
     sanitized=$(echo "$filename" | sed 's/\./_/g; s/[^a-zA-Z0-9_-]/_/g')
-    echo "[KUBERNETES]_${sanitized}"
+    echo "[KUBERNETES] ${sanitized}"
 }
 
 # Switch to an existing tmux session or attach if not in tmux
