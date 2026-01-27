@@ -55,7 +55,9 @@ format_for_display() {
 generate_session_name() {
     local filename="$1"
     # Replace dots with underscores, then replace any non-alphanumeric chars (except dash and underscore)
-    echo "[KUBERNETES]_$(echo "$filename" | sed 's/\./_/g; s/[^a-zA-Z0-9_-]/_/g')"
+    local sanitized
+    sanitized=$(echo "$filename" | sed 's/\./_/g; s/[^a-zA-Z0-9_-]/_/g')
+    echo "[KUBERNETES]_${sanitized}"
 }
 
 # Switch to an existing tmux session or attach if not in tmux
@@ -165,7 +167,9 @@ main() {
     
     # Find kubeconfig files and display only filenames in fzf
     local selected
-    selected=$(find_kube_configs | format_for_display | fzf --tmux=center,100% --prompt="Select Kubernetes config: ")
+    selected=$(find_kube_configs | \
+               format_for_display | \
+               fzf --tmux=center,100% --prompt="Select Kubernetes config: ")
     
     open_session "$selected"
 }
