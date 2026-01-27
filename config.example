@@ -5,6 +5,10 @@
 # STARTUP_HOOK: Optional command to run when creating a new tmux session
 # This command will be executed after setting the KUBECONFIG variable
 # Leave empty to just start a shell with KUBECONFIG set
+#
+# SECURITY NOTE: The startup hook command is executed as-is without sanitization.
+# Only use trusted commands and ensure this config file has proper permissions (e.g., chmod 600).
+#
 # Examples:
 #   STARTUP_HOOK="nix-shell"                    # Enter a nix-shell
 #   STARTUP_HOOK="exec zsh"                     # Start zsh

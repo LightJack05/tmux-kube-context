@@ -49,6 +49,25 @@ format_for_display() {
     done
 }
 
+# Generate a tmux-compatible session name from a filename
+# Replaces dots with underscores and other special characters with underscores
+# This ensures tmux session names are valid
+generate_session_name() {
+    local filename="$1"
+    # Replace dots with underscores, then replace any non-alphanumeric chars (except dash and underscore)
+    echo "[KUBERNETES]_$(echo "$filename" | sed 's/\./_/g; s/[^a-zA-Z0-9_-]/_/g')"
+}
+
+# Switch to an existing tmux session or attach if not in tmux
+switch_to_session() {
+    local session_name="$1"
+    if [[ -n "$TMUX" ]]; then
+        tmux switch-client -t "$session_name"
+    else
+        tmux attach-session -t "$session_name"
+    fi
+}
+
 # Create or switch to tmux session for the selected kubeconfig
 open_session() {
     local selected_filename="$1"
@@ -60,36 +79,31 @@ open_session() {
     # Construct the full path
     local config_path="$KUBE_CONFIG_DIR/$selected_filename"
     
-    # Create session name with [KUBERNETES] prefix
-    # Replace dots and other special characters with underscores for tmux compatibility
+    # Generate session name
     local session_name
-    session_name="[KUBERNETES]_$(echo "$selected_filename" | sed 's/\./_/g; s/[^a-zA-Z0-9_-]/_/g')"
+    session_name=$(generate_session_name "$selected_filename")
     
     # Check if session already exists
     if tmux has-session -t="$session_name" 2>/dev/null; then
         # Session exists, switch to it
-        if [[ -n "$TMUX" ]]; then
-            tmux switch-client -t "$session_name"
-        else
-            tmux attach-session -t "$session_name"
-        fi
+        switch_to_session "$session_name"
     else
-        # Create new session with KUBECONFIG set
+        # Build the command to run in the new session
+        local session_command="export KUBECONFIG='$config_path'"
+        
         if [[ -n "$STARTUP_HOOK" ]]; then
-            # Create session with startup hook command
-            tmux new-session -d -s "$session_name" -c "$HOME" \
-                "export KUBECONFIG='$config_path'; $STARTUP_HOOK"
+            # Append startup hook command (user is responsible for hook security)
+            session_command="$session_command; $STARTUP_HOOK"
         else
-            # Create session with just a shell and KUBECONFIG set
-            tmux new-session -d -s "$session_name" -c "$HOME" \
-                "export KUBECONFIG='$config_path'; exec \$SHELL"
+            # Default: start a new shell
+            session_command="$session_command; exec \$SHELL"
         fi
         
-        if [[ -n "$TMUX" ]]; then
-            tmux switch-client -t "$session_name"
-        else
-            tmux attach-session -t "$session_name"
-        fi
+        # Create new session
+        tmux new-session -d -s "$session_name" -c "$HOME" "$session_command"
+        
+        # Switch to the new session
+        switch_to_session "$session_name"
     fi
 }
 
