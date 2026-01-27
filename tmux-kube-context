@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# tmux-kube-context: Find kubeconfig files in ~/.kube/config.d/ and open them in tmux sessions
+
+set -o pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/tmux-kube-context"
+CONFIG_FILE="$CONFIG_DIR/config"
+KUBE_CONFIG_DIR="$HOME/.kube/config.d"
+
+# Default startup hook command (can be overridden in config)
+STARTUP_HOOK=""
+
+# Check for required dependencies
+check_dependencies() {
+    local missing=()
+    
+    for cmd in fzf tmux; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+    
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Error: Missing required dependencies: ${missing[*]}" >&2
+        exit 1
+    fi
+}
+
+# Load configuration
+load_config() {
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$CONFIG_FILE"
+    fi
+}
+
+# Find all kubeconfig files in ~/.kube/config.d/
+find_kube_configs() {
+    local expanded_path="${KUBE_CONFIG_DIR/#\~/$HOME}"
+    
+    if [[ -d "$expanded_path" ]]; then
+        # Find all files (non-directories) in the config directory
+        find "$expanded_path" -maxdepth 1 -type f 2>/dev/null
+    fi
+}
+
+# Format kubeconfig path for display (show only filename)
+format_for_display() {
+    while IFS= read -r path; do
+        basename "$path"
+    done
+}
+
+# Create or switch to tmux session for the selected kubeconfig
+open_session() {
+    local selected_filename="$1"
+    
+    if [[ -z "$selected_filename" ]]; then
+        exit 0
+    fi
+    
+    # Construct the full path
+    local config_path="$KUBE_CONFIG_DIR/$selected_filename"
+    
+    # Create session name with [KUBERNETES] prefix
+    # Replace dots and other special characters with underscores for tmux compatibility
+    local session_name
+    session_name="[KUBERNETES]_$(echo "$selected_filename" | sed 's@\.@_@g; s@[^a-zA-Z0-9_-]@_@g')"
+    
+    # Check if session already exists
+    if tmux has-session -t="$session_name" 2>/dev/null; then
+        # Session exists, switch to it
+        if [[ -n "$TMUX" ]]; then
+            tmux switch-client -t "$session_name"
+        else
+            tmux attach-session -t "$session_name"
+        fi
+    else
+        # Create new session with KUBECONFIG set
+        if [[ -n "$STARTUP_HOOK" ]]; then
+            # Create session with startup hook command
+            tmux new-session -d -s "$session_name" -c "$HOME" \
+                "export KUBECONFIG='$config_path'; $STARTUP_HOOK"
+        else
+            # Create session with just a shell and KUBECONFIG set
+            tmux new-session -d -s "$session_name" -c "$HOME" \
+                "export KUBECONFIG='$config_path'; exec \$SHELL"
+        fi
+        
+        if [[ -n "$TMUX" ]]; then
+            tmux switch-client -t "$session_name"
+        else
+            tmux attach-session -t "$session_name"
+        fi
+    fi
+}
+
+# Show help
+show_help() {
+    cat << EOF
+tmux-kube-context - Find kubeconfig files and open them in tmux sessions
+
+Usage: tmux-kube-context [OPTIONS]
+
+Options:
+    -h, --help      Show this help message
+    -l, --list      List all kubeconfig files without opening
+
+Configuration:
+    Config file: $CONFIG_FILE
+    Kubeconfig directory: $KUBE_CONFIG_DIR
+    
+    The config file allows you to configure:
+    - STARTUP_HOOK: Optional command to run when creating a session (e.g., "nix-shell")
+
+Example config:
+    STARTUP_HOOK="nix-shell"
+
+How it works:
+    - Searches for files in ~/.kube/config.d/
+    - Creates or switches to a tmux session for the selected kubeconfig
+    - Session name is prefixed with [KUBERNETES] followed by the filename
+    - Sets KUBECONFIG environment variable to the selected file path
+    - Optionally runs a startup hook command (e.g., nix-shell)
+
+Examples:
+    tmux-kube-context              # Interactive kubeconfig selection
+    tmux-kube-context --list       # List all kubeconfig files
+
+EOF
+}
+
+# Main function
+main() {
+    load_config
+    check_dependencies
+    
+    # Find kubeconfig files and display only filenames in fzf
+    local selected
+    selected=$(find_kube_configs | format_for_display | fzf --tmux=center,100% --prompt="Select Kubernetes config: ")
+    
+    open_session "$selected"
+}
+
+# Parse command line arguments
+case "${1:-}" in
+    -h|--help)
+        show_help
+        exit 0
+        ;;
+    -l|--list)
+        load_config
+        find_kube_configs | format_for_display
+        exit 0
+        ;;
+    "")
+        main
+        ;;
+    *)
+        echo "Error: Unknown option: $1" >&2
+        show_help
+        exit 1
+        ;;
+esac
