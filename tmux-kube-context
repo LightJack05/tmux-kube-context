@@ -94,10 +94,14 @@ open_session() {
         local session_command="export KUBECONFIG='$config_path'"
         
         if [[ -n "$STARTUP_HOOK" ]]; then
-            # Append startup hook command (user is responsible for hook security)
+            # Append startup hook command
+            # Note: STARTUP_HOOK is executed as-is from the user's config file
+            # Users are responsible for the security of their startup hook commands
             session_command="$session_command; $STARTUP_HOOK"
         else
             # Default: start a new shell
+            # Note: \$SHELL is escaped so tmux evaluates it in the session context
+            # This ensures the user's configured shell is used, not the current shell
             session_command="$session_command; exec \$SHELL"
         fi
         
