@@ -160,16 +160,8 @@ main() {
         exit 1
     fi
     
-    # Check if there are any files
-    local file_count
-    file_count=$(find_kube_configs | wc -l)
-    if [[ "$file_count" -eq 0 ]]; then
-        echo "Error: No kubeconfig files found in $KUBE_CONFIG_DIR" >&2
-        echo "Please add kubeconfig files to this directory." >&2
-        exit 1
-    fi
-    
-    # Find kubeconfig files and display only filenames in fzf
+    # Stream kubeconfig files directly to fzf for dynamic population
+    # No pre-counting - files appear in fzf as they are found
     local selected
     selected=$(find_kube_configs | \
                format_for_display | \
