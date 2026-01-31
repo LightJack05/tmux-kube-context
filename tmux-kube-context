@@ -110,6 +110,12 @@ open_session() {
         # in all windows created in this session
         tmux new-session -d -s "$session_name" -c "$HOME" -e KUBECONFIG="$config_path" "$session_command"
         
+        # If a custom startup hook is specified, set it as the default command for the session
+        # This ensures new windows also run the startup hook
+        if [[ -n "$STARTUP_HOOK" ]]; then
+            tmux set-option -t "$session_name" default-command "$STARTUP_HOOK"
+        fi
+        
         # Switch to the new session
         switch_to_session "$session_name"
     fi
