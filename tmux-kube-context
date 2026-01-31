@@ -106,8 +106,8 @@ open_session() {
         fi
         
         # Create new session with KUBECONFIG environment variable
-        # Using -e to set the environment variable ensures it's available in all windows
-        # including the initial window
+        # Using -e sets the variable at session level, making it available
+        # in all windows created in this session
         tmux new-session -d -s "$session_name" -c "$HOME" -e KUBECONFIG="$config_path" "$session_command"
         
         # Switch to the new session
