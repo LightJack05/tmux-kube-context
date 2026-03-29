@@ -91,22 +91,30 @@ open_session() {
         switch_to_session "$session_name"
     else
         # Build the command to run in the new session
-        local session_command="export KUBECONFIG='$config_path'"
+        local session_command=""
         
         if [[ -n "$STARTUP_HOOK" ]]; then
-            # Append startup hook command
+            # Run startup hook command
             # Note: STARTUP_HOOK is executed as-is from the user's config file
             # Users are responsible for the security of their startup hook commands
-            session_command="$session_command; $STARTUP_HOOK"
+            session_command="$STARTUP_HOOK"
         else
             # Default: start a new shell
             # Note: \$SHELL is escaped so tmux evaluates it in the session context
             # This ensures the user's configured shell is used, not the current shell
-            session_command="$session_command; exec \$SHELL"
+            session_command="exec \$SHELL"
         fi
         
-        # Create new session
-        tmux new-session -d -s "$session_name" -c "$HOME" "$session_command"
+        # Create new session with KUBECONFIG environment variable
+        # Using -e sets the variable at session level, making it available
+        # in all windows created in this session
+        tmux new-session -d -s "$session_name" -c "$HOME" -e KUBECONFIG="$config_path" "$session_command"
+        
+        # If a custom startup hook is specified, set it as the default command for the session
+        # This ensures new windows also run the startup hook
+        if [[ -n "$STARTUP_HOOK" ]]; then
+            tmux set-option -t "$session_name" default-command "$STARTUP_HOOK"
+        fi
         
         # Switch to the new session
         switch_to_session "$session_name"

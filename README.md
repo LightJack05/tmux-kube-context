@@ -118,15 +118,17 @@ alias tkc='tmux-kube-context'
 
 1. The script searches for files in `~/.kube/config.d/`
 2. When you select a file, it creates a tmux session named `[KUBERNETES]_<filename>`
-3. In that session, it sets the `KUBECONFIG` environment variable to the full path of the selected file
-4. If configured, it runs the startup hook command (e.g., `nix-shell`)
-5. Otherwise, it starts your default shell with the KUBECONFIG variable set
+3. In that session, it sets the `KUBECONFIG` environment variable to the full path of the selected file at the session level
+4. **All windows** created within this tmux session will automatically have access to the same `KUBECONFIG` variable
+5. If configured, it runs the startup hook command (e.g., `nix-shell`)
+6. Otherwise, it starts your default shell with the KUBECONFIG variable set
 
 This is particularly useful for:
 - Switching between multiple Kubernetes clusters/contexts
 - Keeping different kubeconfig files isolated in separate tmux sessions
 - Quickly accessing cluster-specific configurations
 - Running cluster-specific environments (e.g., with nix-shell)
+- Opening multiple windows in the same session to work with the same Kubernetes context
 
 ## Example Workflow
 
