@@ -1,5 +1,8 @@
 # tmux-kube-context
 
+> [!NOTE]
+> Development of this tool has moved to a local gitea instance: [https://gitea.lightjack.de/LightJack05](https://gitea.lightjack.de/LightJack05)
+
 A simple tool to find kubeconfig files in ~/.kube/config.d/ using fzf with tmux integration, and open them in tmux sessions with the KUBECONFIG variable set.
 
 > **Caution**  
